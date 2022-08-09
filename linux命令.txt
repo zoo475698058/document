@@ -1,0 +1,43 @@
+cd  全拼 change directory，功能是从当前工作目录切换到指定的工作目录。
+ls  全拼 list，功能是列出目录的内容及其内容属性信息。
+cat 全拼 concatenate，功能是用于连接多个文件并且打印到屏幕输出或重定向到指定文件中。
+cp  全拼 copy，其功能为复制文件或目录。
+mkdir   全拼 make directories，其功能是创建目录。
+mv  全拼 move，其功能是移动或重命名文件。
+rm  全拼 remove，其功能是删除一个或多个文件或目录。
+chmod   改变文件或目录权限。
+pgrep   查找匹配条件的进程。  ps -ef|grep nginx
+systemctl [start | stop | restart | status | reload] 服务名
+
+df -h       查看系统整体空间剩余情况
+du -sh *    查看每个文件夹的占用情况
+ls |wc -l   查看当前文件夹下有多少文件
+
+.tar
+解包：tar zxvf FileName.tar
+打包：tar czvf FileName.tar DirName
+.tar.gz 和 .tgz
+解压：tar zxvf FileName.tar.gz
+压缩：tar zcvf FileName.tar.gz DirName
+.zip
+解压：unzip FileName.zip
+压缩：zip FileName.zip DirName
+
+
+tmux命令
+yum install tmux    安装tmux
+tmux new -s my_session              新建会话
+tmux attach -t my_session   下次使用时，重新连接到会话
+tmux detach                         分离会话
+tmux ls                             查看当前所有的 Tmux 会话
+tmux kill-session                   杀死会话
+tmux switch -t <session-name>       切换会话
+tmux rename-session -t 0 <new-name> 重命名会话
+
+tmux会话快捷键
+下面是一些会话相关的快捷键。
+Ctrl+b d：分离当前会话。
+Ctrl+b s：列出所有会话。
+Ctrl+b $：重命名当前会话。
+
+

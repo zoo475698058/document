@@ -1,0 +1,12 @@
+git clone   克隆仓库
+git pull    下载远程代码并合并
+
+git push    上传远程代码并合并
+git status  查看仓库当前的状态，显示有变更的文件。
+git diff    比较文件的不同，即暂存区和工作区的差异。
+git add     添加文件到暂存区
+git commit  提交暂存区到本地仓库。
+
+git reset   回退版本。
+git rm      删除工作区文件。
+git mv      移动或重命名工作区文件。

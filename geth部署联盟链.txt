@@ -1,0 +1,65 @@
+linux 环境
+1.安装go、git
+2.克隆geth安装
+ git clone https://github.com/ethereum/go-ethereum.git
+ cd go-ethereum/
+ go env -w GOPROXY=https://goproxy.cn	修改为国内源地址
+ make geth	编译安装
+ vi ~/.profile  配置环境变量
+ export PATH=$PATH:/usr/local/geth
+ source ~/.profile
+ geth --version  // 查看是否执行成功
+ 
+
+区块链创建命令
+geth --datadir data1 init genesis.json	初始化区块链1
+geth --datadir data2 init genesis.json	初始化区块链2
+
+geth --datadir data1 --networkid 123 --nodiscover  --port 30303--http --http.api net,eth,web3,personal --http.port 8545--http.addr localhost console 2>>geth1.log
+
+geth --datadir data2 --networkid 123 --nodiscover --port 55554 --http --http.api net,eth,web3,personal --http.port 8101 --http.addr localhost console 2>>geth2.log
+
+geth --datadir data1 --networkid 123 --nodiscover console 2>>geth1.log  启动链
+
+
+eth.accounts  查看用户列表
+personal.importRawKey("", passphrase)  导入账户，预分配金额的使用
+
+personal.newAccount(“123456”)  创建用户，密码123456
+eth.getBalance(eth.accounts[0])  查看余额
+miner.setEtherbase("0xee40818b8318b69601686f9c4f091f1fca23b752")  设置挖矿奖励地址 eth.coinbase  查看挖矿奖励地址
+
+personal.unlockAccount("0xee40818b8318b69601686f9c4f091f1fca23b752", "123456")  解锁账户
+eth.sendTransaction({from:eth.accounts[1],to:eth.accounts[0],value:web3.toWei(1,‘ether’),data:"0xe68891e6809de69585e68891e59ca8"})  转账
+eth.sendTransaction({from:"0xee40818b8318b69601686f9c4f091f1fca23b752",data:"0xe68891e6809de69585e68891e59ca8"})  转账
+
+eth.sendTransaction("hash") 查看交易详情
+0xd7ce7a3379ecb6ac59d2ccb740b891c136aeeea343c2e28bac6b133655041dc5
+0x53a0f3fbe0db7984d1144c37b2d84aba5dbaf243a8b5d98d47fed07da383ae67
+
+添加节点
+admin.nodeInfo.enode  查看节点enode信息
+
+"enode://5c5cd1236a584199b9ccfc422aabd38e4540e39f42beade51c38abaa1493af4586e838e0f89455104e091ea91a42fc4a0b91b099eff884e361ca51cd7767bb00@127.0.0.1:55554?discport=0"
+
+admin.addPeer(XXX)
+admin.peers  查看节点列表
+
+
+--nodiscover 关闭p2p网络的自动发现，需要手动添加节点，这样有利于我们隐藏私有网络
+--datadir 区块链数据存储目录
+--port  网络监听端口，默认30303
+--networkid 网络标识，私有链取一个大于4的随意的值
+--rpc 启用ipc服务
+--rpcport ipc服务端口，默认端口号8545
+--rpcapi 表示可以通过ipc调用的对象
+--rpcaddr ipc监听地址，默认为127.0.0.1，只能本地访问
+
+
+txpool.status：查看交易池中等待被打包的交易
+txpool.inspect.pending：查看已提交但还未被处理的交易，pending表示已提交但还未被处理的交易
+eth.getBlock(“pending”, true).transactions：查看当前待确认交易
+
+
+
+

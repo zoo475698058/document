@@ -1,0 +1,669 @@
+fabric-ca-client常用命令
+register：注册实体到数据库，但是没有获取证书，需要enroll命令才能获取。
+enroll：登记，获取证书。
+gencrl：撤销证书
+gencsr：创建证书签名
+cainfo：获取CA信息
+reenroll：重新登记账号
+revoke：撤销一个账号
+version：显示版本信息
+
+流程：
+1.部署tlsCA,登记tlsCA管理员
+2.注册并登记组织CA
+3.使用通过tlsCA颁发的证书，部署组织CA
+4.组织成员向组织CA注册登记
+
+<!-- 部署TLS CA 1.4-->
+1.fabric-ca-server文件准备
+mkdir fabric-ca-server-tls,并上传fabric-ca-server
+2.fabric-ca-server初始化TLS CA 服务器
+./fabric-ca-server init -b tls-admin:tls-adminpw
+3.修改 TLS CA 服务器配置
+vi fabric-ca-server-config.yaml 修改port:7054、tls.enabled:true、ca.name:tls-ca、signing.profiles仅保留tls等参数
+4.删除 TLS CA 服务器证书（如果您修改了配置 .yaml 文件块中csr的任何值）
+删除该fabric-ca-server-tls/ca-cert.pem文件和整个fabric-ca-server-tls/msp文件夹,这些证书将在您在下一步启动 CA 服务器时重新生成。
+5.启动 TLS CA服务器
+./fabric-ca-server start
+成功则显示 [INFO] Listening on https://0.0.0.0:7054
+
+6.fabric-ca-client文件准备 
+新开窗口
+mkdir fabric-ca-client,并上传fabric-ca-client
+cd fabric-ca-client
+mkdir tls-ca、tls-root-cert
+层级如下
+fabric-ca-client
+  └── tls-ca
+  └── tls-root-cert
+7.tls ca-cert.pem文件拷贝
+cp fabric-ca-server-tls/ca-cert.pem  fabric-ca-client/tls-root-cert/tls-ca-cert.pem
+8.export FABRIC_CA_CLIENT_HOME=$PWD
+9.登记TLS CA管理员
+./fabric-ca-client enroll -d -u https://tls-admin:tls-adminpw@localhost:7054 --tls.certfiles tls-root-cert/tls-ca-cert.pem --enrollment.profile tls --csr.hosts 'xhj1,localhost' --mspdir tls-ca/tlsadmin/msp
+10.向TLS CA注册登记组织 CA
+./fabric-ca-client register -d --id.name r1caadmin --id.secret r1caadminpw -u https://localhost:7054  --tls.certfiles tls-root-cert/tls-ca-cert.pem --mspdir tls-ca/tlsadmin/msp
+./fabric-ca-client enroll -d -u https://r1caadmin:r1caadminpw@localhost:7054 --tls.certfiles tls-root-cert/tls-ca-cert.pem --enrollment.profile tls --csr.hosts 'xhj1,localhost' --mspdir tls-ca/r1caadmin/msp
+./fabric-ca-client register -d --id.name r2caadmin --id.secret r2caadminpw -u https://localhost:7054  --tls.certfiles tls-root-cert/tls-ca-cert.pem --mspdir tls-ca/tlsadmin/msp
+./fabric-ca-client enroll -d -u https://r2caadmin:r2caadminpw@localhost:7054 --tls.certfiles tls-root-cert/tls-ca-cert.pem --enrollment.profile tls --csr.hosts 'xhj1,localhost' --mspdir tls-ca/r2caadmin/msp
+./fabric-ca-client register -d --id.name r3caadmin --id.secret r3caadminpw -u https://localhost:7054  --tls.certfiles tls-root-cert/tls-ca-cert.pem --mspdir tls-ca/tlsadmin/msp
+./fabric-ca-client enroll -d -u https://r3caadmin:r3caadminpw@localhost:7054 --tls.certfiles tls-root-cert/tls-ca-cert.pem --enrollment.profile tls --csr.hosts 'xhj1,localhost' --mspdir tls-ca/r3caadmin/msp
+./fabric-ca-client register -d --id.name ocaadmin --id.secret ocaadminpw -u https://localhost:7054  --tls.certfiles tls-root-cert/tls-ca-cert.pem --mspdir tls-ca/tlsadmin/msp
+./fabric-ca-client enroll -d -u https://ocaadmin:ocaadminpw@localhost:7054 --tls.certfiles tls-root-cert/tls-ca-cert.pem --enrollment.profile tls --csr.hosts 'xhj1,localhost' --mspdir tls-ca/ocaadmin/msp
+
+
+<!-- 部署组织 CA --> 
+1.fabric-ca-server文件准备
+mkdir fabric-ca-server-org1,并上传fabric-ca-server
+2.创建tls文件夹，拷贝文件
+mkdir tls
+cp ../fabric-ca-client/tls-ca/r1caadmin/msp/signcerts/cert.pem tls && cp ../fabric-ca-client/tls-ca/r1caadmin/msp/keystore/key.pem tls
+3.初始化CA服务器
+./fabric-ca-server init -b r1caadmin:r1caadminpw
+4.修改 CA 服务器配置,cert.pem及key.pem由向tlsCA注册时生成r1caadmin/msp/signcerts、keystore
+vi fabric-ca-server-config.yaml 修改port:8054、tls.enabled:true、tls.certfile:tls/cert.pem、tls.keyfile:tls/key.pem、ca.name、operations.listenAddress等参数，避免端口冲突
+5.删除 CA 服务器证书（如果您修改了配置 .yaml 文件块中csr的任何值）
+删除该fabric-ca-server-org1/ca-cert.pem文件和整个fabric-ca-server-org1/msp文件夹,这些证书将在您在下一步启动 CA 服务器时重新生成。
+6.启动 CA服务器
+./fabric-ca-server start
+ 
+7.新开窗口前往fabric-ca-client
+export FABRIC_CA_CLIENT_HOME=$PWD
+8.登记CA管理员
+./fabric-ca-client enroll -d -u https://r1caadmin:r1caadminpw@localhost:8054 --tls.certfiles tls-root-cert/tls-ca-cert.pem --csr.hosts 'xhj1,localhost' --mspdir org1-ca/r1caadmin/msp
+9.向CA注册登记节点
+./fabric-ca-client register -d --id.name org1admin --id.secret org1adminpw -u https://localhost:8054 --mspdir ./org1-ca/r1caadmin/msp --id.type admin --tls.certfiles ./tls-root-cert/tls-ca-cert.pem --csr.hosts 'xhj1,org1.xhj.com'
+./fabric-ca-client enroll -u https://org1admin:org1adminpw@localhost:8054 --mspdir ./org1-ca/org1.xhj.com/msp --csr.hosts 'xhj1,org1.xhj.com' --tls.certfiles ./tls-root-cert/tls-ca-cert.pem
+
+./fabric-ca-client register -d --id.name ordereradmin --id.secret ordereradminpw -u https://localhost:8054 --mspdir ./org1-ca/r1caadmin/msp --id.type orderer --tls.certfiles ./tls-root-cert/tls-ca-cert.pem --csr.hosts 'xhj1,orderer.xhj.com'
+./fabric-ca-client enroll -u https://ordereradmin:ordereradminpw@localhost:8054 --mspdir ./org1-ca/orderer.xhj.com/msp --csr.hosts 'xhj1,orderer.xhj.com' --tls.certfiles ./tls-root-cert/tls-ca-cert.pem
+
+./fabric-ca-client register -d --id.name o1admin --id.secret o1adminpw -u https://localhost:9054 --mspdir ./order-ca/ocaadmin/msp --id.type orderer --tls.certfiles ./tls-root-cert/tls-ca-cert.pem --csr.hosts 'xhj1,order1.xhj.com'
+./fabric-ca-client enroll -u https://o1admin:o1adminpw@localhost:9054 --mspdir ./order-ca/order1.xhj.com/msp --csr.hosts 'xhj1,order1.xhj.com' --tls.certfiles ./tls-root-cert/tls-ca-cert.pem
+
+<!-- 注册命令 --> 
+./fabric-ca-client register -d --id.name <ID_NAME> --id.secret <ID_SECRET> -u <CA_URL> --mspdir <CA_ADMIN> --id.type <ID_TYPE> --id.attrs $ID_ATTRIBUTE --tls.certfiles <TLSCERT>
+ID_NAME：身份的注册ID。此名称将提供给带外用户，他们将在注册时使用它。
+ID_SECRET：身份的秘密（类似于密码）。这个秘密也将与注册时使用的注册 ID 一起提供给用户。
+CA_URL：CA 的 URL，后跟端口7054（除非默认端口已更改）。
+CA_ADMIN：CA 管理员的证书位置的路径。
+ID_TYPE：身份的类型（或角色）。有四种可能的类型：peer、orderer、admin和client（用于应用程序）。此类型必须链接到相关的NodeOU。如果未使用 NodeOU，则可以忽略类型和--id.type标志。
+ID_ATTRIBUTE：为此身份指定的任何属性。有关属性的更多信息，请查看基于属性的访问控制。这些属性也可以作为 JSON 数组添加，因此$ID_ATTRIBUTE不是表示单个属性，而是表示任何和所有属性，应将其放在--id.attrs标志之后的 register 命令中。
+TLSCERT：您的 TLS CA 根签名证书的相对路径（在创建 TLS CA 时生成）
+<!-- 登记命令 -->
+./fabric-ca-client enroll -u https://<ENROLL_ID>:<ENROLL_SECRET><@CA_URL>:<PORT> --mspdir <MSP_FOLDER> --csr.hosts <CSR_HOSTNAME> --tls.certfiles $TLS_CERT
+ENROLL_ID: 注册此身份时指定的注册 ID。这将必须在带外传达给此身份的用户。
+ENROLL_SECRET：注册此身份时指定的注册密码。这将必须在带外传达给此身份的用户。
+CA_URL: CA 的 URL，包括端口（默认为 7054）。如果您在同一位置配置了两个 CA，您还必须在--caname标志后面指定 CA 名称，但在本教程中，我们假设您使用的是 [CA 部署教程] 中指定的 CA 配置。
+PORT：您注册的 CA 使用的端口。
+MSP_FOLDER: 文件系统上的 MSP（本地 MSP，如果注册节点，或 org MSP，如果注册管理员）的路径。如果您没有指定-mspdir标志来指定位置，则证书将放置在msp您当前位置的文件夹中（如果此文件夹不存在，则会创建它）。
+CSR_HOSTNAME：仅与节点身份相关，这将对节点的域名进行编码。例如，MagnetoCorp 可能选择主机名peer0.mgntoorg.magnetocorp.com.
+TLS_CERT：与此组织关联的 TLS CA 的 TLS CA 根签名证书的相对路径。
+
+
+
+<!-- 创建通道 2.4-->
+1.设置 configtxgen 工具
+cd fabric-samples/test-network
+export PATH=${PWD}/../bin:$PATH
+export FABRIC_CFG_PATH=${PWD}/configtx
+检查configtxgen
+configtxgen --help
+2.清理关闭后启动网络
+./network.sh down
+./network.sh up
+3.创建应用通道创世块
+configtxgen -profile TwoOrgsApplicationGenesis -outputBlock ./channel-artifacts/mychannel.block -channelID mychannel
+4.环境常量
+export ORDERER_CA=${PWD}/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem
+export ORDERER_ADMIN_TLS_SIGN_CERT=${PWD}/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/tls/server.crt
+export ORDERER_ADMIN_TLS_PRIVATE_KEY=${PWD}/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/tls/server.key
+5.创建应用通道
+osnadmin channel join --channel-id mychannel --config-block ./channel-artifacts/mychannel.block -o localhost:7053 --ca-file "$ORDERER_CA" --client-cert "$ORDERER_ADMIN_TLS_SIGN_CERT" --client-key "$ORDERER_ADMIN_TLS_PRIVATE_KEY"
+6.在 orderer 上列出频道
+osnadmin channel list -o localhost:7053 --ca-file "$ORDERER_CA" --client-cert "$ORDERER_ADMIN_TLS_SIGN_CERT" --client-key "$ORDERER_ADMIN_TLS_PRIVATE_KEY"
+7.切换org1admin
+export CORE_PEER_TLS_ENABLED=true
+export CORE_PEER_LOCALMSPID="Org1MSP"
+export CORE_PEER_TLS_ROOTCERT_FILE=${PWD}/organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/ca.crt
+export CORE_PEER_MSPCONFIGPATH=${PWD}/organizations/peerOrganizations/org1.example.com/users/Admin@org1.example.com/msp
+export CORE_PEER_ADDRESS=localhost:7051
+8.切换peer CLI
+export FABRIC_CFG_PATH=$PWD/../config/
+9.节点加入通道
+peer channel join -b ./channel-artifacts/mychannel.block
+10.切换org2admin
+export CORE_PEER_LOCALMSPID="Org2MSP"
+export CORE_PEER_TLS_ROOTCERT_FILE=${PWD}/organizations/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/tls/ca.crt
+export CORE_PEER_MSPCONFIGPATH=${PWD}/organizations/peerOrganizations/org2.example.com/users/Admin@org2.example.com/msp
+export CORE_PEER_ADDRESS=localhost:9051
+11.节点加入通道
+peer channel join -b ./channel-artifacts/mychannel.block
+<!-- 设置org1锚节点 -->
+12.切换org1amdin
+export CORE_PEER_LOCALMSPID="Org1MSP"
+export CORE_PEER_TLS_ROOTCERT_FILE=${PWD}/organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/ca.crt
+export CORE_PEER_MSPCONFIGPATH=${PWD}/organizations/peerOrganizations/org1.example.com/users/Admin@org1.example.com/msp
+export CORE_PEER_ADDRESS=localhost:7051
+13.设置锚节点
+peer channel fetch config channel-artifacts/config_block.pb -o localhost:7050 --ordererTLSHostnameOverride orderer.example.com -c mychannel --tls --cafile "$ORDERER_CA"
+14.通道配置解码为json对象
+cd channel-artifacts
+configtxlator proto_decode --input config_block.pb --type common.Block --output config_block.json
+jq '.data.data[0].payload.data.config' config_block.json > config.json
+cp config.json config_copy.json
+15.Org1锚节点添加到通道配置
+jq '.channel_group.groups.Application.groups.Org1MSP.values += {"AnchorPeers":{"mod_policy": "Admins","value":{"anchor_peers": [{"host": "peer0.org1.example.com","port": 7051}]},"version": "0"}}' config_copy.json > modified_config.json
+16.计算差异
+configtxlator proto_encode --input config.json --type common.Config --output config.pb
+configtxlator proto_encode --input modified_config.json --type common.Config --output modified_config.pb
+configtxlator compute_update --channel_id mychannel --original config.pb --updated modified_config.pb --output config_update.pb
+17.创建通道配置更新事务
+configtxlator proto_decode --input config_update.pb --type common.ConfigUpdate --output config_update.json
+echo '{"payload":{"header":{"channel_header":{"channel_id":"mychannel", "type":2}},"data":{"config_update":'$(cat config_update.json)'}}}' | jq . > config_update_in_envelope.json
+configtxlator proto_encode --input config_update_in_envelope.json --type common.Envelope --output config_update_in_envelope.pb
+18.回test-network目录,更新通道配置
+cd ..
+peer channel update -f channel-artifacts/config_update_in_envelope.pb -c mychannel -o localhost:7050  --ordererTLSHostnameOverride orderer.example.com --tls --cafile "${PWD}/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem"
+<!-- 设置org2锚节点 -->
+19.切换org2admin
+export CORE_PEER_LOCALMSPID="Org2MSP"
+export CORE_PEER_TLS_ROOTCERT_FILE=${PWD}/organizations/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/tls/ca.crt
+export CORE_PEER_MSPCONFIGPATH=${PWD}/organizations/peerOrganizations/org2.example.com/users/Admin@org2.example.com/msp
+export CORE_PEER_ADDRESS=localhost:9051
+20.拉取最新通道配置
+peer channel fetch config channel-artifacts/config_block.pb -o localhost:7050 --ordererTLSHostnameOverride orderer.example.com -c mychannel --tls --cafile "${PWD}/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem"
+21.通道配置解码为json对象
+cd channel-artifacts
+configtxlator proto_decode --input config_block.pb --type common.Block --output config_block.json
+jq '.data.data[0].payload.data.config' config_block.json > config.json
+cp config.json config_copy.json
+22.Org2锚节点添加到通道配置
+jq '.channel_group.groups.Application.groups.Org2MSP.values += {"AnchorPeers":{"mod_policy": "Admins","value":{"anchor_peers": [{"host": "peer0.org2.example.com","port": 9051}]},"version": "0"}}' config_copy.json > modified_config.json
+23.计算差异
+configtxlator proto_encode --input config.json --type common.Config --output config.pb
+configtxlator proto_encode --input modified_config.json --type common.Config --output modified_config.pb
+configtxlator compute_update --channel_id mychannel --original config.pb --updated modified_config.pb --output config_update.pb
+24.创建通道配置更新事务
+configtxlator proto_decode --input config_update.pb --type common.ConfigUpdate --output config_update.json
+echo '{"payload":{"header":{"channel_header":{"channel_id":"mychannel", "type":2}},"data":{"config_update":'$(cat config_update.json)'}}}' | jq . > config_update_in_envelope.json
+configtxlator proto_encode --input config_update_in_envelope.json --type common.Envelope --output config_update_in_envelope.pb
+25.回test-network目录,更新通道配置
+cd ..
+peer channel update -f channel-artifacts/config_update_in_envelope.pb -c mychannel -o localhost:7050  --ordererTLSHostnameOverride orderer.example.com --tls --cafile "${PWD}/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem"
+26.查看节点通道信息
+peer channel getinfo -c mychannel
+<-- 链码部署到通道 -->
+27.链码部署到通道
+./network.sh deployCC -ccn basic -ccp ../asset-transfer-basic/chaincode-javascript/ -ccl javascript -c mychannel
+28.初始化账本资产
+peer chaincode invoke -o localhost:7050 --ordererTLSHostnameOverride orderer.example.com --tls --cafile "$ORDERER_CA" -C mychannel -n basic --peerAddresses localhost:7051 --tlsRootCertFiles "${PWD}/organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/ca.crt" --peerAddresses localhost:9051 --tlsRootCertFiles "${PWD}/organizations/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/tls/ca.crt" -c '{"function":"InitLedger","Args":[]}'
+29.查询账本资产
+peer chaincode query -C mychannel -n basic -c '{"Args":["GetAllAssets"]}'
+
+
+<!-- 打包智能合约 -->
+1.前往文件夹,安装依赖项
+go链码
+cd fabric-samples/asset-transfer-basic/chaincode-go
+GO111MODULE=on go mod vendor
+
+typescript、javascript链码
+cd fabric-samples/asset-transfer-basic/chaincode-typescript
+npm install
+
+2.返回test-network,环境配置
+cd ../../test-network
+export PATH=${PWD}/../bin:$PATH
+export FABRIC_CFG_PATH=$PWD/../config/
+3.检查节点版本信息
+peer version
+4.打包链码
+peer lifecycle chaincode package basic.tar.gz --path ../asset-transfer-basic/chaincode-typescript/ --lang node --label basic_1.0
+5.安装链码包
+切换org1
+export CORE_PEER_TLS_ENABLED=true
+export CORE_PEER_LOCALMSPID="Org1MSP"
+export CORE_PEER_TLS_ROOTCERT_FILE=${PWD}/organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/ca.crt
+export CORE_PEER_MSPCONFIGPATH=${PWD}/organizations/peerOrganizations/org1.example.com/users/Admin@org1.example.com/msp
+export CORE_PEER_ADDRESS=localhost:7051
+安装链码
+peer lifecycle chaincode install basic.tar.gz
+切换org2
+export CORE_PEER_LOCALMSPID="Org2MSP"
+export CORE_PEER_TLS_ROOTCERT_FILE=${PWD}/organizations/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/tls/ca.crt
+export CORE_PEER_MSPCONFIGPATH=${PWD}/organizations/peerOrganizations/org2.example.com/users/Admin@org2.example.com/msp
+export CORE_PEER_ADDRESS=localhost:9051
+安装链码
+peer lifecycle chaincode install basic.tar.gz
+6.批准链码定义
+节点链码查询
+peer lifecycle chaincode queryinstalled
+设置环境变量（对应链码id）
+export CC_PACKAGE_ID=basic_1.0:e6c08fb0f50e857d1fd764e813d36ad433a2f945bac230c5d6ea5eb8e9b6e502
+批准链码，切换org1、org2分别执行
+peer lifecycle chaincode approveformyorg -o localhost:7050 --ordererTLSHostnameOverride orderer.example.com --channelID mychannel --name basic --version 1.0 --package-id $CC_PACKAGE_ID --sequence 2 --tls --cafile "${PWD}/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem"
+7.将链码定义提交到通道
+检查链码批准情况
+peer lifecycle chaincode checkcommitreadiness --channelID mychannel --name basic --version 1.0 --sequence 2 --tls --cafile "${PWD}/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem" --output json
+链码提交
+peer lifecycle chaincode commit -o localhost:7050 --ordererTLSHostnameOverride orderer.example.com --channelID mychannel --name basic --version 1.0 --sequence 2 --tls --cafile "${PWD}/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem" --peerAddresses localhost:7051 --tlsRootCertFiles "${PWD}/organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/ca.crt" --peerAddresses localhost:9051 --tlsRootCertFiles "${PWD}/organizations/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/tls/ca.crt"
+链码提交查询
+peer lifecycle chaincode querycommitted --channelID mychannel --name basic --cafile "${PWD}/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem"
+8.调用链码初始化
+peer chaincode invoke -o localhost:7050 --ordererTLSHostnameOverride orderer.example.com --tls --cafile "${PWD}/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem" -C mychannel -n basic --peerAddresses localhost:7051 --tlsRootCertFiles "${PWD}/organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/ca.crt" --peerAddresses localhost:9051 --tlsRootCertFiles "${PWD}/organizations/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/tls/ca.crt" -c '{"function":"InitLedger","Args":[]}'
+9.调用链码查询
+peer chaincode query -C mychannel -n basic -c '{"Args":["GetAllAssets"]}'
+
+
+<!-- 升级智能合约 -->
+1.安装依赖项
+cd ../asset-transfer-basic/chaincode-javascript
+npm install
+cd ../../test-network
+2.打包链码
+export PATH=${PWD}/../bin:$PATH
+export FABRIC_CFG_PATH=$PWD/../config/
+export CORE_PEER_MSPCONFIGPATH=${PWD}/organizations/peerOrganizations/org1.example.com/users/Admin@org1.example.com/msp
+peer lifecycle chaincode package basic_2.tar.gz --path ../asset-transfer-basic/chaincode-javascript/ --lang node --label basic_2.0
+3.org1操作
+切换org1
+export CORE_PEER_TLS_ENABLED=true
+export CORE_PEER_LOCALMSPID="Org1MSP"
+export CORE_PEER_TLS_ROOTCERT_FILE=${PWD}/organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/ca.crt
+export CORE_PEER_MSPCONFIGPATH=${PWD}/organizations/peerOrganizations/org1.example.com/users/Admin@org1.example.com/msp
+export CORE_PEER_ADDRESS=localhost:7051
+安装链码
+peer lifecycle chaincode install basic_2.tar.gz
+查询链码
+peer lifecycle chaincode queryinstalled
+环境变量
+export NEW_CC_PACKAGE_ID=basic_2.0:fee2d66d51d0cb6961f693bbbfc45f0791ac3a698bd48173b92c3130d98e7878
+批准链码
+peer lifecycle chaincode approveformyorg -o localhost:7050 --ordererTLSHostnameOverride orderer.example.com --channelID mychannel --name basic --version 2.0 --package-id $NEW_CC_PACKAGE_ID --sequence 3 --tls --cafile "${PWD}/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem"
+4.org2操作
+切换org2
+export CORE_PEER_LOCALMSPID="Org2MSP"
+export CORE_PEER_TLS_ROOTCERT_FILE=${PWD}/organizations/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/tls/ca.crt
+export CORE_PEER_MSPCONFIGPATH=${PWD}/organizations/peerOrganizations/org2.example.com/users/Admin@org2.example.com/msp
+export CORE_PEER_ADDRESS=localhost:9051
+安装链码
+peer lifecycle chaincode install basic_2.tar.gz
+批准链码
+peer lifecycle chaincode approveformyorg -o localhost:7050 --ordererTLSHostnameOverride orderer.example.com --channelID mychannel --name basic --version 2.0 --package-id $NEW_CC_PACKAGE_ID --sequence 3 --tls --cafile "${PWD}/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem"
+5.链码提交检查
+peer lifecycle chaincode checkcommitreadiness --channelID mychannel --name basic --version 2.0 --sequence 3 --tls --cafile "${PWD}/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem" --output json
+6.链码提交
+peer lifecycle chaincode commit -o localhost:7050 --ordererTLSHostnameOverride orderer.example.com --channelID mychannel --name basic --version 2.0 --sequence 3 --tls --cafile "${PWD}/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem" --peerAddresses localhost:7051 --tlsRootCertFiles "${PWD}/organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/ca.crt" --peerAddresses localhost:9051 --tlsRootCertFiles "${PWD}/organizations/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/tls/ca.crt"
+7.调用链码方法
+peer chaincode invoke -o localhost:7050 --ordererTLSHostnameOverride orderer.example.com --tls --cafile "${PWD}/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem" -C mychannel -n basic --peerAddresses localhost:7051 --tlsRootCertFiles "${PWD}/organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/ca.crt" --peerAddresses localhost:9051 --tlsRootCertFiles "${PWD}/organizations/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/tls/ca.crt" -c '{"function":"CreateAsset","Args":["asset8","blue","16","Kelley","750"]}'
+8.调用链码查询
+peer chaincode query -C mychannel -n basic -c '{"Args":["GetAllAssets"]}'
+
+
+
+手动启动ca并启动组织节点docker
+1.移除历史文件
+rm -Rf organizations/peerOrganizations && rm -Rf organizations/ordererOrganizations
+2.设置环境
+export PATH=${PWD}/../bin:$PATH
+export FABRIC_CFG_PATH=${PWD}/configtx
+3.启动ca-compose
+docker-compose -f compose/compose-ca.yaml up -d
+4.执行ca注册命令--. organizations/fabric-ca/registerEnroll.sh
+4.1创建createOrg1
+4.1.1设置环境
+mkdir -p organizations/peerOrganizations/org1.example.com/
+export FABRIC_CA_CLIENT_HOME=${PWD}/organizations/peerOrganizations/org1.example.com/
+4.1.2载入admin
+fabric-ca-client enroll -u https://admin:adminpw@localhost:7054 --caname ca-org1 --tls.certfiles "${PWD}/organizations/fabric-ca/org1/ca-cert.pem"
+4.1.3配置config.yaml
+echo 'NodeOUs:
+  Enable: true
+  ClientOUIdentifier:
+    Certificate: cacerts/localhost-7054-ca-org1.pem
+    OrganizationalUnitIdentifier: client
+  PeerOUIdentifier:
+    Certificate: cacerts/localhost-7054-ca-org1.pem
+    OrganizationalUnitIdentifier: peer
+  AdminOUIdentifier:
+    Certificate: cacerts/localhost-7054-ca-org1.pem
+    OrganizationalUnitIdentifier: admin
+  OrdererOUIdentifier:
+    Certificate: cacerts/localhost-7054-ca-org1.pem
+    OrganizationalUnitIdentifier: orderer' > "${PWD}/organizations/peerOrganizations/org1.example.com/msp/config.yaml"
+4.1.4拷贝认证文件
+mkdir -p "${PWD}/organizations/peerOrganizations/org1.example.com/msp/tlscacerts"
+cp "${PWD}/organizations/fabric-ca/org1/ca-cert.pem" "${PWD}/organizations/peerOrganizations/org1.example.com/msp/tlscacerts/ca.crt"
+mkdir -p "${PWD}/organizations/peerOrganizations/org1.example.com/tlsca"
+cp "${PWD}/organizations/fabric-ca/org1/ca-cert.pem" "${PWD}/organizations/peerOrganizations/org1.example.com/tlsca/tlsca.org1.example.com-cert.pem"
+mkdir -p "${PWD}/organizations/peerOrganizations/org1.example.com/ca"
+cp "${PWD}/organizations/fabric-ca/org1/ca-cert.pem" "${PWD}/organizations/peerOrganizations/org1.example.com/ca/ca.org1.example.com-cert.pem"
+4.1.5注册peer0、user1、org1admin
+fabric-ca-client register --caname ca-org1 --id.name peer0 --id.secret peer0pw --id.type peer --tls.certfiles "${PWD}/organizations/fabric-ca/org1/ca-cert.pem"
+fabric-ca-client register --caname ca-org1 --id.name user1 --id.secret user1pw --id.type client --tls.certfiles "${PWD}/organizations/fabric-ca/org1/ca-cert.pem"
+fabric-ca-client register --caname ca-org1 --id.name org1admin --id.secret org1adminpw --id.type admin --tls.certfiles "${PWD}/organizations/fabric-ca/org1/ca-cert.pem"
+4.1.6载入peer0
+fabric-ca-client enroll -u https://peer0:peer0pw@localhost:7054 --caname ca-org1 -M "${PWD}/organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/msp" --csr.hosts peer0.org1.example.com --tls.certfiles "${PWD}/organizations/fabric-ca/org1/ca-cert.pem"
+cp "${PWD}/organizations/peerOrganizations/org1.example.com/msp/config.yaml" "${PWD}/organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/msp/config.yaml"
+fabric-ca-client enroll -u https://peer0:peer0pw@localhost:7054 --caname ca-org1 -M "${PWD}/organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls" --enrollment.profile tls --csr.hosts peer0.org1.example.com --csr.hosts localhost --tls.certfiles "${PWD}/organizations/fabric-ca/org1/ca-cert.pem"
+cp "${PWD}/organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/tlscacerts/"* "${PWD}/organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/ca.crt"
+cp "${PWD}/organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/signcerts/"* "${PWD}/organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/server.crt"
+cp "${PWD}/organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/keystore/"* "${PWD}/organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/server.key"
+4.1.7载入user1、org1admin
+fabric-ca-client enroll -u https://user1:user1pw@localhost:7054 --caname ca-org1 -M "${PWD}/organizations/peerOrganizations/org1.example.com/users/User1@org1.example.com/msp" --tls.certfiles "${PWD}/organizations/fabric-ca/org1/ca-cert.pem"
+cp "${PWD}/organizations/peerOrganizations/org1.example.com/msp/config.yaml" "${PWD}/organizations/peerOrganizations/org1.example.com/users/User1@org1.example.com/msp/config.yaml"
+fabric-ca-client enroll -u https://org1admin:org1adminpw@localhost:7054 --caname ca-org1 -M "${PWD}/organizations/peerOrganizations/org1.example.com/users/Admin@org1.example.com/msp" --tls.certfiles "${PWD}/organizations/fabric-ca/org1/ca-cert.pem"
+cp "${PWD}/organizations/peerOrganizations/org1.example.com/msp/config.yaml" "${PWD}/organizations/peerOrganizations/org1.example.com/users/Admin@org1.example.com/msp/config.yaml"
+
+4.2创建createOrg2
+4.2.1设置环境
+mkdir -p organizations/peerOrganizations/org2.example.com/
+export FABRIC_CA_CLIENT_HOME=${PWD}/organizations/peerOrganizations/org2.example.com/
+4.2.2载入admin
+fabric-ca-client enroll -u https://admin:adminpw@localhost:8054 --caname ca-org2 --tls.certfiles "${PWD}/organizations/fabric-ca/org2/ca-cert.pem"
+4.2.3配置config.yaml
+echo 'NodeOUs:
+  Enable: true
+  ClientOUIdentifier:
+    Certificate: cacerts/localhost-8054-ca-org2.pem
+    OrganizationalUnitIdentifier: client
+  PeerOUIdentifier:
+    Certificate: cacerts/localhost-8054-ca-org2.pem
+    OrganizationalUnitIdentifier: peer
+  AdminOUIdentifier:
+    Certificate: cacerts/localhost-8054-ca-org2.pem
+    OrganizationalUnitIdentifier: admin
+  OrdererOUIdentifier:
+    Certificate: cacerts/localhost-8054-ca-org2.pem
+    OrganizationalUnitIdentifier: orderer' > "${PWD}/organizations/peerOrganizations/org2.example.com/msp/config.yaml"
+4.2.4拷贝认证文件，由于CA同时充当组织CA和TLS CA，因此将CA启动生成的组织的根证书复制到组织级CA和tlsca目录中 
+mkdir -p "${PWD}/organizations/peerOrganizations/org2.example.com/msp/tlscacerts"
+cp "${PWD}/organizations/fabric-ca/org2/ca-cert.pem" "${PWD}/organizations/peerOrganizations/org2.example.com/msp/tlscacerts/ca.crt"
+mkdir -p "${PWD}/organizations/peerOrganizations/org2.example.com/tlsca"
+cp "${PWD}/organizations/fabric-ca/org2/ca-cert.pem" "${PWD}/organizations/peerOrganizations/org2.example.com/tlsca/tlsca.org2.example.com-cert.pem"
+mkdir -p "${PWD}/organizations/peerOrganizations/org2.example.com/ca"
+cp "${PWD}/organizations/fabric-ca/org2/ca-cert.pem" "${PWD}/organizations/peerOrganizations/org2.example.com/ca/ca.org2.example.com-cert.pem"
+4.2.5注册peer0、user1、org2admin
+fabric-ca-client register --caname ca-org2 --id.name peer0 --id.secret peer0pw --id.type peer --tls.certfiles "${PWD}/organizations/fabric-ca/org2/ca-cert.pem"
+fabric-ca-client register --caname ca-org2 --id.name user1 --id.secret user1pw --id.type client --tls.certfiles "${PWD}/organizations/fabric-ca/org2/ca-cert.pem"
+fabric-ca-client register --caname ca-org2 --id.name org2admin --id.secret org2adminpw --id.type admin --tls.certfiles "${PWD}/organizations/fabric-ca/org2/ca-cert.pem"
+4.2.6载入peer0
+fabric-ca-client enroll -u https://peer0:peer0pw@localhost:8054 --caname ca-org2 -M "${PWD}/organizations/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/msp" --csr.hosts peer0.org2.example.com --tls.certfiles "${PWD}/organizations/fabric-ca/org2/ca-cert.pem"
+cp "${PWD}/organizations/peerOrganizations/org2.example.com/msp/config.yaml" "${PWD}/organizations/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/msp/config.yaml"
+fabric-ca-client enroll -u https://peer0:peer0pw@localhost:8054 --caname ca-org2 -M "${PWD}/organizations/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/tls" --enrollment.profile tls --csr.hosts 'peer0.org2.example.com,localhost' --tls.certfiles "${PWD}/organizations/fabric-ca/org2/ca-cert.pem"
+cp "${PWD}/organizations/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/tls/tlscacerts/"* "${PWD}/organizations/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/tls/ca.crt"
+cp "${PWD}/organizations/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/tls/signcerts/"* "${PWD}/organizations/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/tls/server.crt"
+cp "${PWD}/organizations/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/tls/keystore/"* "${PWD}/organizations/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/tls/server.key"
+4.2.7载入user1、org2admin
+fabric-ca-client enroll -u https://user1:user1pw@localhost:8054 --caname ca-org2 -M "${PWD}/organizations/peerOrganizations/org2.example.com/users/User1@org2.example.com/msp" --tls.certfiles "${PWD}/organizations/fabric-ca/org2/ca-cert.pem"
+cp "${PWD}/organizations/peerOrganizations/org2.example.com/msp/config.yaml" "${PWD}/organizations/peerOrganizations/org2.example.com/users/User1@org2.example.com/msp/config.yaml"
+fabric-ca-client enroll -u https://org2admin:org2adminpw@localhost:8054 --caname ca-org2 -M "${PWD}/organizations/peerOrganizations/org2.example.com/users/Admin@org2.example.com/msp" --tls.certfiles "${PWD}/organizations/fabric-ca/org2/ca-cert.pem"
+cp "${PWD}/organizations/peerOrganizations/org2.example.com/msp/config.yaml" "${PWD}/organizations/peerOrganizations/org2.example.com/users/Admin@org2.example.com/msp/config.yaml"
+
+4.3创建createOrderer
+mkdir -p organizations/ordererOrganizations/example.com
+export FABRIC_CA_CLIENT_HOME=${PWD}/organizations/ordererOrganizations/example.com
+fabric-ca-client enroll -u https://admin:adminpw@localhost:9054 --caname ca-orderer --tls.certfiles "${PWD}/organizations/fabric-ca/ordererOrg/ca-cert.pem"
+
+echo 'NodeOUs:
+  Enable: true
+  ClientOUIdentifier:
+    Certificate: cacerts/localhost-9054-ca-orderer.pem
+    OrganizationalUnitIdentifier: client
+  PeerOUIdentifier:
+    Certificate: cacerts/localhost-9054-ca-orderer.pem
+    OrganizationalUnitIdentifier: peer
+  AdminOUIdentifier:
+    Certificate: cacerts/localhost-9054-ca-orderer.pem
+    OrganizationalUnitIdentifier: admin
+  OrdererOUIdentifier:
+    Certificate: cacerts/localhost-9054-ca-orderer.pem
+    OrganizationalUnitIdentifier: orderer' > "${PWD}/organizations/ordererOrganizations/example.com/msp/config.yaml"
+
+mkdir -p "${PWD}/organizations/ordererOrganizations/example.com/msp/tlscacerts"
+cp "${PWD}/organizations/fabric-ca/ordererOrg/ca-cert.pem" "${PWD}/organizations/ordererOrganizations/example.com/msp/tlscacerts/tlsca.example.com-cert.pem"
+mkdir -p "${PWD}/organizations/ordererOrganizations/example.com/tlsca"
+cp "${PWD}/organizations/fabric-ca/ordererOrg/ca-cert.pem" "${PWD}/organizations/ordererOrganizations/example.com/tlsca/tlsca.example.com-cert.pem"
+fabric-ca-client register --caname ca-orderer --id.name orderer --id.secret ordererpw --id.type orderer --tls.certfiles "${PWD}/organizations/fabric-ca/ordererOrg/ca-cert.pem"
+fabric-ca-client register --caname ca-orderer --id.name ordererAdmin --id.secret ordererAdminpw --id.type admin --tls.certfiles "${PWD}/organizations/fabric-ca/ordererOrg/ca-cert.pem"
+fabric-ca-client enroll -u https://orderer:ordererpw@localhost:9054 --caname ca-orderer -M "${PWD}/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp" --csr.hosts orderer.example.com --csr.hosts localhost --tls.certfiles "${PWD}/organizations/fabric-ca/ordererOrg/ca-cert.pem"
+cp "${PWD}/organizations/ordererOrganizations/example.com/msp/config.yaml" "${PWD}/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/config.yaml"
+fabric-ca-client enroll -u https://orderer:ordererpw@localhost:9054 --caname ca-orderer -M "${PWD}/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/tls" --enrollment.profile tls --csr.hosts orderer.example.com --csr.hosts localhost --tls.certfiles "${PWD}/organizations/fabric-ca/ordererOrg/ca-cert.pem"
+cp "${PWD}/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/tls/tlscacerts/"* "${PWD}/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/tls/ca.crt"
+cp "${PWD}/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/tls/signcerts/"* "${PWD}/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/tls/server.crt"
+cp "${PWD}/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/tls/keystore/"* "${PWD}/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/tls/server.key"
+mkdir -p "${PWD}/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts"
+cp "${PWD}/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/tls/tlscacerts/"* "${PWD}/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem"
+fabric-ca-client enroll -u https://ordererAdmin:ordererAdminpw@localhost:9054 --caname ca-orderer -M "${PWD}/organizations/ordererOrganizations/example.com/users/Admin@example.com/msp" --tls.certfiles "${PWD}/organizations/fabric-ca/ordererOrg/ca-cert.pem"
+cp "${PWD}/organizations/ordererOrganizations/example.com/msp/config.yaml" "${PWD}/organizations/ordererOrganizations/example.com/users/Admin@example.com/msp/config.yaml"
+
+4.4生成链接文件
+ ./organizations/ccp-generate.sh
+ 
+5.启动默认网络 或 couch数据库网络
+docker-compose -f compose/compose-test-net.yaml -f compose/docker/docker-compose-test-net.yaml up -d
+docker-compose -f compose/compose-couch.yaml -f compose/docker/docker-compose-couch.yaml up -d
+
+
+手动启动添加org3
+cd addOrg3
+1.配置环境
+export PATH=${PWD}/../../bin:${PWD}:$PATH
+export FABRIC_CFG_PATH=${PWD}
+export VERBOSE=false
+2.启动ca
+docker-compose -f compose/compose-ca-org3.yaml -f compose/docker/docker-compose-ca-org3.yaml up -d
+3.载入admin
+mkdir -p ../organizations/peerOrganizations/org3.example.com/
+export FABRIC_CA_CLIENT_HOME=${PWD}/../organizations/peerOrganizations/org3.example.com/
+fabric-ca-client enroll -u https://admin:adminpw@localhost:11054 --caname ca-org3 --tls.certfiles "${PWD}/fabric-ca/org3/tls-cert.pem"
+4.配置config.yaml
+echo 'NodeOUs:
+  Enable: true
+  ClientOUIdentifier:
+    Certificate: cacerts/localhost-11054-ca-org3.pem
+    OrganizationalUnitIdentifier: client
+  PeerOUIdentifier:
+    Certificate: cacerts/localhost-11054-ca-org3.pem
+    OrganizationalUnitIdentifier: peer
+  AdminOUIdentifier:
+    Certificate: cacerts/localhost-11054-ca-org3.pem
+    OrganizationalUnitIdentifier: admin
+  OrdererOUIdentifier:
+    Certificate: cacerts/localhost-11054-ca-org3.pem
+    OrganizationalUnitIdentifier: orderer' > "${PWD}/../organizations/peerOrganizations/org3.example.com/msp/config.yaml"
+
+fabric-ca-client register --caname ca-org3 --id.name peer0 --id.secret peer0pw --id.type peer --tls.certfiles "${PWD}/fabric-ca/org3/tls-cert.pem"
+fabric-ca-client register --caname ca-org3 --id.name user1 --id.secret user1pw --id.type client --tls.certfiles "${PWD}/fabric-ca/org3/tls-cert.pem"
+fabric-ca-client register --caname ca-org3 --id.name org3admin --id.secret org3adminpw --id.type admin --tls.certfiles "${PWD}/fabric-ca/org3/tls-cert.pem"
+fabric-ca-client enroll -u https://peer0:peer0pw@localhost:11054 --caname ca-org3 -M "${PWD}/../organizations/peerOrganizations/org3.example.com/peers/peer0.org3.example.com/msp" --csr.hosts peer0.org3.example.com --tls.certfiles "${PWD}/fabric-ca/org3/tls-cert.pem"
+cp "${PWD}/../organizations/peerOrganizations/org3.example.com/msp/config.yaml" "${PWD}/../organizations/peerOrganizations/org3.example.com/peers/peer0.org3.example.com/msp/config.yaml"
+fabric-ca-client enroll -u https://peer0:peer0pw@localhost:11054 --caname ca-org3 -M "${PWD}/../organizations/peerOrganizations/org3.example.com/peers/peer0.org3.example.com/tls" --enrollment.profile tls --csr.hosts peer0.org3.example.com --csr.hosts localhost --tls.certfiles "${PWD}/fabric-ca/org3/tls-cert.pem"
+
+cp "${PWD}/../organizations/peerOrganizations/org3.example.com/peers/peer0.org3.example.com/tls/tlscacerts/"* "${PWD}/../organizations/peerOrganizations/org3.example.com/peers/peer0.org3.example.com/tls/ca.crt"
+cp "${PWD}/../organizations/peerOrganizations/org3.example.com/peers/peer0.org3.example.com/tls/signcerts/"* "${PWD}/../organizations/peerOrganizations/org3.example.com/peers/peer0.org3.example.com/tls/server.crt"
+cp "${PWD}/../organizations/peerOrganizations/org3.example.com/peers/peer0.org3.example.com/tls/keystore/"* "${PWD}/../organizations/peerOrganizations/org3.example.com/peers/peer0.org3.example.com/tls/server.key"
+mkdir "${PWD}/../organizations/peerOrganizations/org3.example.com/msp/tlscacerts"
+cp "${PWD}/../organizations/peerOrganizations/org3.example.com/peers/peer0.org3.example.com/tls/tlscacerts/"* "${PWD}/../organizations/peerOrganizations/org3.example.com/msp/tlscacerts/ca.crt"
+mkdir "${PWD}/../organizations/peerOrganizations/org3.example.com/tlsca"
+cp "${PWD}/../organizations/peerOrganizations/org3.example.com/peers/peer0.org3.example.com/tls/tlscacerts/"* "${PWD}/../organizations/peerOrganizations/org3.example.com/tlsca/tlsca.org3.example.com-cert.pem"
+mkdir "${PWD}/../organizations/peerOrganizations/org3.example.com/ca"
+cp "${PWD}/../organizations/peerOrganizations/org3.example.com/peers/peer0.org3.example.com/msp/cacerts/"* "${PWD}/../organizations/peerOrganizations/org3.example.com/ca/ca.org3.example.com-cert.pem"
+
+fabric-ca-client enroll -u https://user1:user1pw@localhost:11054 --caname ca-org3 -M "${PWD}/../organizations/peerOrganizations/org3.example.com/users/User1@org3.example.com/msp" --tls.certfiles "${PWD}/fabric-ca/org3/tls-cert.pem"
+cp "${PWD}/../organizations/peerOrganizations/org3.example.com/msp/config.yaml" "${PWD}/../organizations/peerOrganizations/org3.example.com/users/User1@org3.example.com/msp/config.yaml"
+fabric-ca-client enroll -u https://org3admin:org3adminpw@localhost:11054 --caname ca-org3 -M "${PWD}/../organizations/peerOrganizations/org3.example.com/users/Admin@org3.example.com/msp" --tls.certfiles "${PWD}/fabric-ca/org3/tls-cert.pem"
+cp "${PWD}/../organizations/peerOrganizations/org3.example.com/msp/config.yaml" "${PWD}/../organizations/peerOrganizations/org3.example.com/users/Admin@org3.example.com/msp/config.yaml"
+
+4.启动docker
+docker-compose -f compose/compose-org3.yaml -f compose/docker/docker-compose-org3.yaml up -d
+
+5.生成连接文件
+./ccp-generate.sh
+
+
+docker-compose-xxx.yaml配置修改
+${DOCKER_SOCK}	/var/run/docker.sock 
+--channelID		--channel-id
+
+.sh文件编码修改为unix
+:set fileformat=unix
+
+docker run -p 3306:3306 --name mysql -e MYSQL_ROOT_PASSWORD=123456 -d mysql:latest
+
+快捷
+./network.sh up createChannel -ca -c mychannel -s couchdb
+./network.sh deployCC -ccn basic -ccp ../asset-transfer-basic/chaincode-java/ -ccl java 
+./network.sh deployCC -ccn mychaincode -ccp ./user/mychaincode -ccv 1 -ccl javascript
+
+./addOrg3.sh up -c mychannel -ca
+
+
+openssl x509 -in certificate.pem -text -noout
+openssl x509 -in certificate.der -inform der -text -noout 
+openssl rsa -in mykey.key -text -noout 
+openssl rsa -in mykey.key -text -noout -inform der
+openssl pkcs12 -in for-iis.pfx -out for-iis.pem -nodes
+openssl pkcs12 -export -in certificate.crt -inkey privateKey.key -out certificate.pfx -certfile CACert.crt
+
+
+
+1.版本指定
+FabricVersion: 2.4.2
+Fabric CA Version: 1.5.2
+Fabric-samples Version: release-2.2
+
+2.在fabric-sample中部署链码时报错，报错原因是下载依赖的连接被拒绝，如下所示
+Error: failed to normalize chaincode path: 'go list' failed with: go: github.com/golang/protobuf@v1.3.2: 
+Get "https://proxy.golang.org/github.com/golang/protobuf/@v/v1.3.2.mod": dial tcp 172.217.160.81:443: connect: connection refused: exit status 1
+
+更换Go代理，命令行输入
+go env -w GOPROXY=https://goproxy.io,direct
+go env -w GO111MODULE=on
+
+3.下载文件慢、失败
+执行./install -f 2.4.2 binary   ./install -c 1.5.2 binary 时，抓取github地址手动下载
+
+
+HyperLedger Fabric
+-部署
+创建一个通道mychannel 和 三个组织（org1、org2、org3）
+部署一个账本处理服务、4个CA服务到多台服务器
+-开发
+⁃支持 在线签约系统 所需的区块链智能合约（Go）和 节点交互程序（Java）
+提供以下接口
+支持多个key-value对写
+根据hash查询 key-value对
+根据Transaction ID查询key-value对
+-测试生产环境下 在线签约系统 的智能合约
+
+测试和优化区块链系统配置 
+-性能、稳定性测试
+-优化HyperLedger Fabric配置
+高可用部署方案案
+多个CA
+数据库分布式部署
+多个账本排序服务
+-配置私有数据（Private Data in Fabric），让组织之间数据分享更加私密、合理
+
+附录：
+区块链技术在在线签约系统中主要起到保证数据安全、稳定和不可创改性的存证作
+用，从开发角度理解，主要作用为保存合同签署内容的健值对
+开始
+https://hyperledger-fabric.readthedocs.io/en/latest/
+getting_started_run_fabric.html
+学习步骤
+Create a channel
+https://hyperledger-fabric.readthedocs.io/en/latest/create_channel/create_channel_participation.html
+Registering and enrolling identities with a CA
+https://hyperledger-fabric-ca.readthedocs.io/en/release-1.4/deployguide/use_CA.html
+Deploy a new set of orderers
+https://hyperledger-fabric.readthedocs.io/en/latest/create_channel/create_channel_participation.html#deploy-a-new-set-of-orderers
+Create the org MSP needed to add an org to a channel
+https://hyperledger-fabric-ca.readthedocs.io/en/release-1.4/deployguide/use_CA.html#create-the-org-msp-needed-to-add-an-org-to-a-channel
+Step one: Generate the genesis block of the channel
+https://hyperledger-fabric.readthedocs.io/en/latest/create_channel/create_channel_participation.html#step-one-generate-the-genesis-block-of-the-channel
+Step two: Use the OSNadmin CLI to add the first orderer to the channel
+https://hyperledger-fabric.readthedocs.io/en/latest/create_channel/create_channel_participation.html#step-two-use-the-osnadmin-cli-to-add-the-first-orderer-to-the-channel
+Step three: Join additional ordering nodes
+https://hyperledger-fabric.readthedocs.io/en/latest/create_channel/create_channel_participation.html#step-three-join-additional-ordering-nodes
+Follow the tutorial for next steps
+
+
+
+<!-- always needed -->
+        <dependency>
+            <groupId>com.itextpdf</groupId>
+            <artifactId>kernel</artifactId>
+            <version>7.2.3</version>
+        </dependency>
+
+        <!-- always needed -->
+        <dependency>
+            <groupId>com.itextpdf</groupId>
+            <artifactId>io</artifactId>
+            <version>7.2.3</version>
+        </dependency>
+
+        <!-- always needed -->
+        <dependency>
+            <groupId>com.itextpdf</groupId>
+            <artifactId>layout</artifactId>
+            <version>7.2.3</version>
+        </dependency>
+
+        <!-- only needed for forms -->
+        <dependency>
+            <groupId>com.itextpdf</groupId>
+            <artifactId>forms</artifactId>
+            <version>7.2.3</version>
+        </dependency>
+
+        <!-- only needed for PDF/A -->
+        <dependency>
+            <groupId>com.itextpdf</groupId>
+            <artifactId>pdfa</artifactId>
+            <version>7.2.3</version>
+        </dependency>
+
+        <!-- only needed for barcodes -->
+        <dependency>
+            <groupId>com.itextpdf</groupId>
+            <artifactId>barcodes</artifactId>
+            <version>7.2.3</version>
+        </dependency>
+
+        <!-- only needed for hyphenation -->
+        <dependency>
+            <groupId>com.itextpdf</groupId>
+            <artifactId>hyph</artifactId>
+            <version>7.2.3</version>
+        </dependency>
+
+        <!-- only needed for Asian fonts -->
+        <dependency>
+            <groupId>com.itextpdf</groupId>
+            <artifactId>font-asian</artifactId>
+            <version>7.2.3</version>
+        </dependency>
+
+        <!-- only needed for digital signatures -->
+        <dependency>
+            <groupId>com.itextpdf</groupId>
+            <artifactId>sign</artifactId>
+            <version>7.2.3</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.itextpdf</groupId>
+            <artifactId>commons</artifactId>
+            <version>7.2.3</version>
+        </dependency>
+		
+		
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-simple</artifactId>
+			<version>1.7.36</version>
+		</dependency>

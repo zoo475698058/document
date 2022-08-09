@@ -1,0 +1,209 @@
+CentOS7 Yum方式安装MySQL5.7为例
+
+1、去网站下载MySQL Yum Repository（RPM包）
+a、下载地址：https://dev.mysql.com/downloads/repo/yum/
+或者在linux上直接下载，如：
+shell>cd /opt
+shell>wget https://dev.mysql.com/get/mysql57-community-release-el7-11.noarch.rpm	#下载文件
+
+b、选择合适的版本
+c、shell> rpm -Uvh mysql57-community-release-el7-11.noarch.rpm	#安装RPM包
+
+2、选择想要安装的版本。
+a、shell> yum repolist all | grep MySQL	#查看可选版本
+b、默认开启的是你下载的版本
+
+3、如何修改配置文件，选择自己想要安装的版本(该步操作可选)
+a、shell> vi /etc/yum.repos.d/mysql-community.repo  enabled=0表示禁用，enabled＝1表示开启，选择开启所需版本
+[mysql57-community]  
+name=MySQL 5.7 Community Server  
+baseurl=http://repo.mysql.com/yum/mysql-5.7-community/el/6/$basearch/  
+enabled=1   
+gpgcheck=1  
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-mysql  
+
+4、安装MySQL
+a、shell> yum install mysql-community-server 
+
+
+5、启动后修改密码、设置远程登录、配置参数等
+a、shell> service mysqld start    启动服务
+b、shell> grep 'temporary password' /var/log/mysqld.log 　#查看安装mysql时随机root密码
+   如：2017-05-26T01:51:27.763720Z 1 [Note] A temporary password is generated for root@localhost: _hVc;sk#t18n
+
+c、mysql -u root -p  #登录mysql，输入上面查找的密码
+
+d、mysql> set password for root@localhost = password("Abc@123");	#修改密码，密码需要大写字母、特殊字符等 
+
+e、mysql> use mysql;	
+   mysql> update user set host = '%' where user='root';	#设置 ROOT 远程连接 	注意防火墙开启了3306端口
+   mysql>flush privileges;  #修改生效
+
+f、mysql> show variables like '%max_connections%';	#查看最大连接数
+   mysql> set GLOBAL max_connections = 1000;		#设置最大连接数
+
+g、mysql> show variables like '%innodb_buffer_pool_size%';	#查看缓存池大小，默认128M
+   mysql> set GLOBAL innodb_buffer_pool_size = 1073741824;	#设置为1G,常见设置为5-6GB(8GB内存)，20-25GB(32GB内存)，100-120GB(128GB内存)
+   mysql> set GLOBAL innodb_lock_wait_timeout = 1000;		#默认50，改成1000
+   mysql> set GLOBAL sort_buffer_size = 2097152;		#默认256k=262144，改成2M=2097152
+   mysql> set global max_allowed_packet = 2*1024*1024*100	#默认2048k，改成200M
+
+
+6、修改表不区别大小写
+shell> vi /etc/my.cnf  在最前面添加
+lower_case_table_names=1   
+
+修改后，重启服务器生效
+
+说明：
+lower_case_table_names=0  表名存储为给定的大小和比较是区分大小写的
+lower_case_table_names = 1  表名存储在磁盘是小写的，但是比较的时候是不区分大小写 
+lower_case_table_names=2, 表名存储为给定的大小写但是比较的时候是小写的
+
+shell> mysql -u root -p
+mysql> show variables like '%case_table%';			#查看表名大小写设置是否成功
+
+
+方法2：用mysqladmin
+格式：mysqladmin -u用户名 -p旧密码 password 新密码
+例子：mysqladmin -uroot -p123456 password 123	
+
+
+-------------------------------------这是分隔线，数据库安装设置完成------------------------------------------
+
+
+
+1、相关命令说明
+shell> service mysqld start    启动服务
+shell> service mysqld restart 重启
+shell> service mysqld stop 停止
+
+2、登陆问题解决法：
+mysqladmin: connect to server at 'localhost' failed error: 'Access denied for user 'root'@'localhost' (using password: YES)'
+
+a、shell> service mysqld stop	#停止mysql服务
+
+b、shell> vi /etc/my.cnf　　#编辑配置文件
+   skip-grant-tables #在末尾增加这一行，登录mysql时就不需要密码了
+
+c、mysql #进入mysql 
+　mysql> use mysql;
+　mysql> desc user; 	#查看user表中字段，确定密码字段是多少
+　mysql> update user set password=password("*******")where user="root";    #老版本字段为password
+　mysql> update user set authentication_string=password("*******")where user="root";  #mysql5.7版本
+　mysql> flush privileges;	#更新权限
+  mysql> update user set host = '%' where user='root';	#设置非本机访问权限
+　mysql> quit;	#退出mysql
+
+d、shell> vi /etc/my.cnf #编辑配置文件，注释skip-grant-tables这一行
+
+e、shell> service mysqld start
+
+f、shell> mysql -uroot -p #测试mysql登录，输入新设置的密码
+
+
+3、其它操作
+
+一、MySQL查看最大连接数和修改最大连接数
+
+mysql -u root -p  #登录mysql，输入上面查找的密码
+
+1、查看最大连接数
+mysql> show variables like '%max_connections%';
+2、修改最大连接数
+mysql> set GLOBAL max_connections = 1000;
+
+二、设置mysql参数
+
+mysql> show variables like '%innodb_buffer_pool_size%';	#查看
+
+mysql> set GLOBAL innodb_buffer_pool_size = 7516192768;	#默认为128M 缓冲池是数据和索引缓存的地方：这个值越大越好, 缓冲池是数据和索引缓存的地方：这个值越大越好，这能保证你在大多数的读取操作时使用的是内存而不是硬盘。典型的值是5-6GB(8GB内存)，20-25GB(32GB内存)，100-120GB(128GB内存)。
+mysql> set GLOBAL innodb_lock_wait_timeout = 1000;	#默认50，改成1000
+mysql> set GLOBAL sort_buffer_size = 2097152;	#默认256k=262144，改成2M=2097152
+
+//不允许修改，仅可读
+mysql> set GLOBAL innodb_read_io_threads = 8;	#默认4，改成8
+mysql> set GLOBAL innodb_write_io_threads = 8;	#默认4，改成8
+
+三、linux下解决mysql区分大小写问题
+
+ mysql> show variables like '%case_table%';#查看表名大小写
+
+lower_case_table_names=0  表名存储为给定的大小和比较是区分大小写的
+lower_case_table_names = 1  表名存储在磁盘是小写的，但是比较的时候是不区分大小写 
+lower_case_table_names=2, 表名存储为给定的大小写但是比较的时候是小写的
+
+shell> vi /etc/my.cnf 
+
+备注：添加lower_case_table_names=1，表示mysql不区分大小写，这段代码必须在[mysqld_safe]之前。
+
+四、数据库操作
+
+1.登录远程mysql：
+shell> mysql -h 119.120.44.229 -P 3306 -u root -p 
+
+2.远程导出整个数据库
+shell> mysqldump -u root -p -h 119.120.44.229 --databases yangcai_erp_utf8 >test.sql
+
+3.导出一个表
+shell> mysqldump -u root -p db user> user.sql		#导出库中指定表, mysqldump -u 用户名 -p 数据库名表名> 导出的文件名
+
+4.导出一个数据库结构
+shell> mysqldump -u root -p -d --add-drop-table db > /opt/db.sql
+-d 没有数据 --add-drop-table 在每个create语句之前增加一个drop table
+
+5.source方式导入mysql
+shell> mysql -u root -p		#登录mysql
+mysql> use mydatabase;		#切换数据库	
+mysql> source /opt/test.sql;
+
+6.导入到db2
+mysql> create databse db2;	#先创建数据库db2
+shell> mysql -u root -p db2 < /opt/db1.sql	#导入
+
+7.导出参数说明：
+-d --add-drop-table #create表、存在则delete表，默认开启
+--skip-add-drop-table #只create表、不delete表
+
+--set-gtid-purged=off #避免将gtid信息导出
+-h 222.120.11.99 # 远程地址
+
+
+2：卸载MySQL:
+卸载1：
+[root@localhost usr]# yum remove mysql mysql-server mysql-libs compat-mysql51
+[root@localhost usr]# rm -rf /var/lib/mysql
+[root@localhost usr]# rm /etc/my.cnf
+如果装了mysql-devel(其他一样add command)，卸载为：
+复制代码 代码如下:
+[root@Tony_ts_tian init.d]# yum remove mysql mysql-devel mysql-server mysql-libs compat-mysql51
+
+注（例如）:
+mysql-5.5.39-1.el6.remi.x86_64
+mysql-libs-5.5.39-1.el6.remi.x86_64
+compat-mysql51-5.1.54-1.el6.remi.x86_64
+mysql-server-5.5.39-1.el6.remi.x86_64
+卸载2{继续，1，2选择一种（此处为介绍）：}:
+
+[root@localhost mysql]# rpm -aq | grep -i mysql
+MySQL-server-5.6.27-1.el6.x86_64
+MySQL-client-5.6.27-1.el6.x86_64
+MySQL-devel-5.6.27-1.el6.x86_64
+[root@localhost mysql]# rpm -e MySQL-server-5.6.27-1.el6.x86_64
+[root@localhost mysql]# rpm -e MySQL-client-5.6.27-1.el6.x86_64
+[root@localhost mysql]# rpm -e MySQL-devel-5.6.27-1.el6.x86_64
+[root@localhost rc.d]# cd /var/lib/
+[root@localhost lib]# rm -rf mysql/
+注:删除MySQL数据库目录(关键) ，否则password不更新（默认安装，如果自定义安装路径和链接路径ln -s ……请删除。）
+  rm -rf /var/lib/mysql
+卸载3：
+[root@localhost usr]# whereis mysql
+mysql: /usr/lib64/mysql
+[root@localhost usr]# rm -rf /usr/lib64/mysql
+注：find / -name mysql
+注：清空相关mysql的所有目录以及文件和其他配置和设置等。如果有，则删除。也必须考虑其他软件不去影响。
+rm -rf /usr/lib/mysql
+rm -rf /usr/share/mysql
+卸载4：
+[root@localhost usr]# rm –rf /usr/my.cnf
+[root@localhost usr]# rm -rf /root/.mysql_sercret
