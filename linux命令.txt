@@ -40,4 +40,17 @@ Ctrl+b d：分离当前会话。
 Ctrl+b s：列出所有会话。
 Ctrl+b $：重命名当前会话。
 
+docker命令
+docker images -a            #列出本地所有的镜像
+docker rmi XXX:latest		#单个镜像删除
+docker ps -a				# 查看所有容器
+docker start 容器id			#启动容器
+docker stop 容器id			# 关闭容器
+docker attach 容器id bashShell(/bin/bash)	#attach：进入容器正在执行的终端，不会启动新的终端进程；
+docker exec -it 容器id bashShell(/bin/bash)	#exec：进入容器后，开启一个新的终端，可以再里面操作；
+
+docker-compose命令
+docker-compose -f compose/compose-org3.yaml -f compose/docker/docker-compose-org3.yaml up -d  #根据多个配置启动一组容器，并后台运行
+docker-compose stop		#停止compose服务
+
 
