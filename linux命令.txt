@@ -30,7 +30,7 @@ tmux new -s my_session              新建会话
 tmux attach -t my_session   下次使用时，重新连接到会话
 tmux detach                         分离会话
 tmux ls                             查看当前所有的 Tmux 会话
-tmux kill-session                   杀死会话
+tmux kill-session -t <session-name> 杀死会话
 tmux switch -t <session-name>       切换会话
 tmux rename-session -t 0 <new-name> 重命名会话
 
