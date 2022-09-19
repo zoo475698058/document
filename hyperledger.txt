@@ -1,3 +1,127 @@
+
+./network.sh up createChannel -ca -c mychannel -s couchdb
+./network.sh deployCC -ccn basic -ccp ../asset-transfer-basic/chaincode-java/ -ccl java 
+./network.sh deployCC -ccn basic -ccp ../asset-transfer-basic/chaincode-javascript/ -ccl javascript
+./network.sh deployCC -ccn mychaincode -ccp ./user/mychaincode -ccv 1 -ccl javascript
+
+./addOrg3.sh up -c mychannel -ca
+docker run -p 3306:3306 --name mysql -e MYSQL_ROOT_PASSWORD=Z123456 -d mysql:latest
+
+指定org1环境
+export PATH=${PWD}/../bin:$PATH
+export FABRIC_CFG_PATH=$PWD/../config/
+export CORE_PEER_TLS_ENABLED=true
+export CORE_PEER_LOCALMSPID="Org1MSP"
+export CORE_PEER_TLS_ROOTCERT_FILE=${PWD}/organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/ca.crt
+export CORE_PEER_MSPCONFIGPATH=${PWD}/organizations/peerOrganizations/org1.example.com/users/Admin@org1.example.com/msp
+export CORE_PEER_ADDRESS=localhost:7051
+
+peer channel list    查看当前peer加入的通道列表
+peer channel getinfo -c mychannel（区块的最新高度，hash值）
+peer chaincode list --installed  查看已安装合约
+peer chaincode list --instantiated -C mychannel     查看已经实例化合约 
+peer lifecycle chaincode querycommitted   按通道查询已经提交的链码定义
+peer lifecycle chaincode queryinstalled   查询指定peer节点上已经安装的链码
+peer lifecycle chaincode checkcommitreadiness  检查指定的链码是否可以向通道提交
+
+证书
+openssl x509 -in certificate.pem -text -noout
+openssl x509 -in certificate.der -inform der -text -noout 
+openssl rsa -in mykey.key -text -noout 
+openssl rsa -in mykey.key -text -noout -inform der
+openssl pkcs12 -in for-iis.pfx -out for-iis.pem -nodes
+openssl pkcs12 -export -in certificate.crt -inkey privateKey.key -out certificate.pfx -certfile CACert.crt
+
+
+
+1.版本指定
+FabricVersion: 2.4.2
+Fabric CA Version: 1.5.2
+Fabric-samples Version: release-2.2
+
+2.在fabric-sample中部署链码时报错，报错原因是下载依赖的连接被拒绝，如下所示
+Error: failed to normalize chaincode path: 'go list' failed with: go: github.com/golang/protobuf@v1.3.2: 
+Get "https://proxy.golang.org/github.com/golang/protobuf/@v/v1.3.2.mod": dial tcp 172.217.160.81:443: connect: connection refused: exit status 1
+
+更换Go代理，命令行输入
+go env -w GOPROXY=https://goproxy.io,direct
+go env -w GO111MODULE=on
+
+3.下载文件慢、失败
+执行./install -f 2.4.2 binary   ./install -c 1.5.2 binary 时，抓取github地址手动下载
+
+
+HyperLedger Fabric
+-部署
+创建一个通道mychannel 和 三个组织（org1、org2、org3）
+部署一个账本处理服务、4个CA服务到多台服务器
+-开发
+⁃支持 在线签约系统 所需的区块链智能合约（Go）和 节点交互程序（Java）
+提供以下接口
+支持多个key-value对写
+根据hash查询 key-value对
+根据Transaction ID查询key-value对
+-测试生产环境下 在线签约系统 的智能合约
+
+测试和优化区块链系统配置 
+-性能、稳定性测试
+-优化HyperLedger Fabric配置
+高可用部署方案案
+多个CA
+数据库分布式部署
+多个账本排序服务
+-配置私有数据（Private Data in Fabric），让组织之间数据分享更加私密、合理
+
+附录：
+区块链技术在在线签约系统中主要起到保证数据安全、稳定和不可创改性的存证作
+用，从开发角度理解，主要作用为保存合同签署内容的健值对
+开始
+https://hyperledger-fabric.readthedocs.io/en/latest/
+getting_started_run_fabric.html
+学习步骤
+Create a channel
+https://hyperledger-fabric.readthedocs.io/en/latest/create_channel/create_channel_participation.html
+Registering and enrolling identities with a CA
+https://hyperledger-fabric-ca.readthedocs.io/en/release-1.4/deployguide/use_CA.html
+Deploy a new set of orderers
+https://hyperledger-fabric.readthedocs.io/en/latest/create_channel/create_channel_participation.html#deploy-a-new-set-of-orderers
+Create the org MSP needed to add an org to a channel
+https://hyperledger-fabric-ca.readthedocs.io/en/release-1.4/deployguide/use_CA.html#create-the-org-msp-needed-to-add-an-org-to-a-channel
+Step one: Generate the genesis block of the channel
+https://hyperledger-fabric.readthedocs.io/en/latest/create_channel/create_channel_participation.html#step-one-generate-the-genesis-block-of-the-channel
+Step two: Use the OSNadmin CLI to add the first orderer to the channel
+https://hyperledger-fabric.readthedocs.io/en/latest/create_channel/create_channel_participation.html#step-two-use-the-osnadmin-cli-to-add-the-first-orderer-to-the-channel
+Step three: Join additional ordering nodes
+https://hyperledger-fabric.readthedocs.io/en/latest/create_channel/create_channel_participation.html#step-three-join-additional-ordering-nodes
+Follow the tutorial for next steps
+
+
+
+<dependency>
+	<groupId>cn.hutool</groupId>
+	<artifactId>hutool-all</artifactId>
+	<version>5.8.5</version>
+</dependency>
+
+<dependency>
+	<groupId>org.slf4j</groupId>
+	<artifactId>slf4j-simple</artifactId>
+	<version>1.7.36</version>
+</dependency>
+
+nohup java -jar pdf_anxinsign-0.0.1-SNAPSHOT.jar --server.port=8088 > ./logs/pdf.log &
+
+命令说明:
+nohup：代表后台启动项
+--server.prot指定项目的端口号
+> 表示日志输出到指定文件夹
+empBoxLog.log表示生成empBoxLog.log文件再当前目录
+&表示后台一直启动
+
+
+
+
+
 fabric-ca-client常用命令
 register：注册实体到数据库，但是没有获取证书，需要enroll命令才能获取。
 enroll：登记，获取证书。
@@ -119,7 +243,7 @@ export ORDERER_CA=${PWD}/organizations/ordererOrganizations/example.com/orderers
 export ORDERER_ADMIN_TLS_SIGN_CERT=${PWD}/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/tls/server.crt
 export ORDERER_ADMIN_TLS_PRIVATE_KEY=${PWD}/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/tls/server.key
 5.创建应用通道
-osnadmin channel join --channel-id mychannel --config-block ./channel-artifacts/mychannel.block -o localhost:7053 --ca-file "$ORDERER_CA" --client-cert "$ORDERER_ADMIN_TLS_SIGN_CERT" --client-key "$ORDERER_ADMIN_TLS_PRIVATE_KEY"
+osnadmin channel join --channelID mychannel --config-block ./channel-artifacts/mychannel.block -o localhost:7053 --ca-file "$ORDERER_CA" --client-cert "$ORDERER_ADMIN_TLS_SIGN_CERT" --client-key "$ORDERER_ADMIN_TLS_PRIVATE_KEY"
 6.在 orderer 上列出频道
 osnadmin channel list -o localhost:7053 --ca-file "$ORDERER_CA" --client-cert "$ORDERER_ADMIN_TLS_SIGN_CERT" --client-key "$ORDERER_ADMIN_TLS_PRIVATE_KEY"
 7.切换org1admin
@@ -242,12 +366,12 @@ peer lifecycle chaincode queryinstalled
 设置环境变量（对应链码id）
 export CC_PACKAGE_ID=basic_1.0:e6c08fb0f50e857d1fd764e813d36ad433a2f945bac230c5d6ea5eb8e9b6e502
 批准链码，切换org1、org2分别执行
-peer lifecycle chaincode approveformyorg -o localhost:7050 --ordererTLSHostnameOverride orderer.example.com --channelID mychannel --name basic --version 1.0 --package-id $CC_PACKAGE_ID --sequence 2 --tls --cafile "${PWD}/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem"
+peer lifecycle chaincode approveformyorg -o localhost:7050 --ordererTLSHostnameOverride orderer.example.com --channelID mychannel --name basic --version 1.0 --package-id $CC_PACKAGE_ID --sequence 1 --tls --cafile "${PWD}/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem"
 7.将链码定义提交到通道
 检查链码批准情况
-peer lifecycle chaincode checkcommitreadiness --channelID mychannel --name basic --version 1.0 --sequence 2 --tls --cafile "${PWD}/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem" --output json
+peer lifecycle chaincode checkcommitreadiness --channelID mychannel --name basic --version 1.0 --sequence 1 --tls --cafile "${PWD}/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem" --output json
 链码提交
-peer lifecycle chaincode commit -o localhost:7050 --ordererTLSHostnameOverride orderer.example.com --channelID mychannel --name basic --version 1.0 --sequence 2 --tls --cafile "${PWD}/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem" --peerAddresses localhost:7051 --tlsRootCertFiles "${PWD}/organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/ca.crt" --peerAddresses localhost:9051 --tlsRootCertFiles "${PWD}/organizations/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/tls/ca.crt"
+peer lifecycle chaincode commit -o localhost:7050 --ordererTLSHostnameOverride orderer.example.com --channelID mychannel --name basic --version 1.0 --sequence 1 --tls --cafile "${PWD}/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem" --peerAddresses localhost:7051 --tlsRootCertFiles "${PWD}/organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/ca.crt" --peerAddresses localhost:9051 --tlsRootCertFiles "${PWD}/organizations/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/tls/ca.crt"
 链码提交查询
 peer lifecycle chaincode querycommitted --channelID mychannel --name basic --cafile "${PWD}/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem"
 8.调用链码初始化
@@ -501,91 +625,3 @@ docker-compose -f compose/compose-org3.yaml -f compose/docker/docker-compose-org
 
 5.生成连接文件
 ./ccp-generate.sh
-
-
-docker-compose-xxx.yaml配置修改
-${DOCKER_SOCK}	/var/run/docker.sock 
---channelID		--channel-id
-
-.sh文件编码修改为unix
-:set fileformat=unix
-
-docker run -p 3306:3306 --name mysql -e MYSQL_ROOT_PASSWORD=123456 -d mysql:latest
-
-快捷
-./network.sh up createChannel -ca -c mychannel -s couchdb
-./network.sh deployCC -ccn basic -ccp ../asset-transfer-basic/chaincode-java/ -ccl java 
-./network.sh deployCC -ccn mychaincode -ccp ./user/mychaincode -ccv 1 -ccl javascript
-
-./addOrg3.sh up -c mychannel -ca
-
-
-openssl x509 -in certificate.pem -text -noout
-openssl x509 -in certificate.der -inform der -text -noout 
-openssl rsa -in mykey.key -text -noout 
-openssl rsa -in mykey.key -text -noout -inform der
-openssl pkcs12 -in for-iis.pfx -out for-iis.pem -nodes
-openssl pkcs12 -export -in certificate.crt -inkey privateKey.key -out certificate.pfx -certfile CACert.crt
-
-
-
-1.版本指定
-FabricVersion: 2.4.2
-Fabric CA Version: 1.5.2
-Fabric-samples Version: release-2.2
-
-2.在fabric-sample中部署链码时报错，报错原因是下载依赖的连接被拒绝，如下所示
-Error: failed to normalize chaincode path: 'go list' failed with: go: github.com/golang/protobuf@v1.3.2: 
-Get "https://proxy.golang.org/github.com/golang/protobuf/@v/v1.3.2.mod": dial tcp 172.217.160.81:443: connect: connection refused: exit status 1
-
-更换Go代理，命令行输入
-go env -w GOPROXY=https://goproxy.io,direct
-go env -w GO111MODULE=on
-
-3.下载文件慢、失败
-执行./install -f 2.4.2 binary   ./install -c 1.5.2 binary 时，抓取github地址手动下载
-
-
-HyperLedger Fabric
--部署
-创建一个通道mychannel 和 三个组织（org1、org2、org3）
-部署一个账本处理服务、4个CA服务到多台服务器
--开发
-⁃支持 在线签约系统 所需的区块链智能合约（Go）和 节点交互程序（Java）
-提供以下接口
-支持多个key-value对写
-根据hash查询 key-value对
-根据Transaction ID查询key-value对
--测试生产环境下 在线签约系统 的智能合约
-
-测试和优化区块链系统配置 
--性能、稳定性测试
--优化HyperLedger Fabric配置
-高可用部署方案案
-多个CA
-数据库分布式部署
-多个账本排序服务
--配置私有数据（Private Data in Fabric），让组织之间数据分享更加私密、合理
-
-附录：
-区块链技术在在线签约系统中主要起到保证数据安全、稳定和不可创改性的存证作
-用，从开发角度理解，主要作用为保存合同签署内容的健值对
-开始
-https://hyperledger-fabric.readthedocs.io/en/latest/
-getting_started_run_fabric.html
-学习步骤
-Create a channel
-https://hyperledger-fabric.readthedocs.io/en/latest/create_channel/create_channel_participation.html
-Registering and enrolling identities with a CA
-https://hyperledger-fabric-ca.readthedocs.io/en/release-1.4/deployguide/use_CA.html
-Deploy a new set of orderers
-https://hyperledger-fabric.readthedocs.io/en/latest/create_channel/create_channel_participation.html#deploy-a-new-set-of-orderers
-Create the org MSP needed to add an org to a channel
-https://hyperledger-fabric-ca.readthedocs.io/en/release-1.4/deployguide/use_CA.html#create-the-org-msp-needed-to-add-an-org-to-a-channel
-Step one: Generate the genesis block of the channel
-https://hyperledger-fabric.readthedocs.io/en/latest/create_channel/create_channel_participation.html#step-one-generate-the-genesis-block-of-the-channel
-Step two: Use the OSNadmin CLI to add the first orderer to the channel
-https://hyperledger-fabric.readthedocs.io/en/latest/create_channel/create_channel_participation.html#step-two-use-the-osnadmin-cli-to-add-the-first-orderer-to-the-channel
-Step three: Join additional ordering nodes
-https://hyperledger-fabric.readthedocs.io/en/latest/create_channel/create_channel_participation.html#step-three-join-additional-ordering-nodes
-Follow the tutorial for next steps
