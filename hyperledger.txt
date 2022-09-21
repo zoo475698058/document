@@ -1,3 +1,5 @@
+sudo env PATH=$PATH
+env | egrep ^PATH
 
 ./network.sh up createChannel -ca -c mychannel -s couchdb
 ./network.sh deployCC -ccn basic -ccp ../asset-transfer-basic/chaincode-java/ -ccl java 
@@ -6,6 +8,7 @@
 
 ./addOrg3.sh up -c mychannel -ca
 docker run -p 3306:3306 --name mysql -e MYSQL_ROOT_PASSWORD=Z123456 -d mysql:latest
+docker-compose down -v
 
 指定org1环境
 export PATH=${PWD}/../bin:$PATH
@@ -328,13 +331,18 @@ peer chaincode query -C mychannel -n basic -c '{"Args":["GetAllAssets"]}'
 
 <!-- 打包智能合约 -->
 1.前往文件夹,安装依赖项
-go链码
+go链码    lang golang
 cd fabric-samples/asset-transfer-basic/chaincode-go
 GO111MODULE=on go mod vendor
 
-typescript、javascript链码
+typescript、javascript链码     lang node
 cd fabric-samples/asset-transfer-basic/chaincode-typescript
 npm install
+
+java链码  lang java
+cd fabric-samples/asset-transfer-basic/chaincode-java
+rm -rf ./build/install/
+./gradlew installDist
 
 2.返回test-network,环境配置
 cd ../../test-network
@@ -343,7 +351,7 @@ export FABRIC_CFG_PATH=$PWD/../config/
 3.检查节点版本信息
 peer version
 4.打包链码
-peer lifecycle chaincode package basic.tar.gz --path ../asset-transfer-basic/chaincode-typescript/ --lang node --label basic_1.0
+peer lifecycle chaincode package basic.tar.gz --path ../asset-transfer-basic/chaincode-java/ --lang java --label basic_1.0
 5.安装链码包
 切换org1
 export CORE_PEER_TLS_ENABLED=true
