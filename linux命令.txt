@@ -8,6 +8,8 @@ rm  全拼 remove，其功能是删除一个或多个文件或目录。
 chmod   改变文件或目录权限。
 pgrep   查找匹配条件的进程。  ps -ef|grep nginx
 systemctl [start | stop | restart | status | reload] 服务名
+wget    从 Web 非交互式下载文件
+curl    服务器之间传输数据
 
 df -h       查看系统整体空间剩余情况
 du -sh *    查看每个文件夹的占用情况
@@ -22,7 +24,6 @@ ls |wc -l   查看当前文件夹下有多少文件
 .zip
 解压：unzip FileName.zip
 压缩：zip FileName.zip DirName
-
 
 tmux命令
 yum install tmux    安装tmux
@@ -51,9 +52,29 @@ docker attach 容器id bashShell(/bin/bash)	#attach：进入容器正在执行�
 docker exec -it 容器id bashShell(/bin/bash)	#exec：进入容器后，开启一个新的终端，可以再里面操作；
 docker start $(docker ps -a | awk '{ print $1 }' | tail -n +2)  依次启动全部容器
 
-
 docker-compose命令
 docker-compose -f compose/compose-org3.yaml -f compose/docker/docker-compose-org3.yaml up -d  #根据多个配置启动一组容器，并后台运行
 docker-compose stop		#停止compose服务
+
+redis命令
+flushdb     清空当前redis数据库缓存flushdb
+flushall    清空整个redis缓存flushall
+del key     删除指定索引的值
+exists key  检查key是否存在
+expire key seconds(秒) 为key设置过期时间，以秒计算
+expire key timestamp(毫秒) 设置key的过期时间以毫秒计算
+keys *      查询所有的键名
+type key  返回key所存储值的类型
+pttl key 以毫秒为单位返回key的剩余过期时间
+set key value   设置指定key的value
+get key   获取指定key的value
+getset key value 为key设置新value，并返回key的旧value
+incr key 将key中存储的数字值增加1 
+decr key 将key中存储的数字值减一。
+incrby key increment  将key所存储的值加上给定的增量值increment
+append key value     如果key存储的值是一个字符串，append命令将指定的value追加到key原来bvalue的末尾。
+SETNX key value     将 key 的值设为 value 该方法是原子的，如果key不存在，则设置当前key成功，返回1；如果当前key已经存在，则设置当前key失败，返回0。
+
+redis-clo -h host -p port -a password   远程连接redis服务命令
 
 

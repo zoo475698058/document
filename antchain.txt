@@ -1,0 +1,22 @@
+创建证书私钥：
+openssl genrsa 2048 | openssl pkcs8 -topk8 -v1 pbeWithSHA1And3-KeyTripleDES-CBC  -out client.key
+genrsa 2048: 生成 2048 位 RSA 私钥
+-topk8: 以 PKCS#8 格式输出
+pbeWithSHA1And3-KeyTripleDES-CBC: 指定加密算法
+-out client.key: 保存为client.key文件
+
+创建 CSR 文件：
+openssl req -new -sha256 -key client.key -out client.csr
+-new：指定生成一个新的 CSR 文件。
+-sha256：指定摘要算法。
+命令执行过程中将提示您输入组织信息。本实验 CA 不会真实核验您的组织信息正确性，可随意填写。
+系统会要求您填写如下信息：
+Country Name (2 letter code)：使用国际标准组织（ISO）国码格式，填写 2 个字母的国家代号，如中国填写 CN。
+State or Province Name (full name)：省份，例如填写 Zhejiang。
+Locality Name (eg, city)：城市，例如填写 Hangzhou。
+Organization Name (eg, company)：组织单位，例如填写公司名的拼音。
+Organizational Unit Name (eg, section)：例如填写 IT Dept。
+Common Name (eg, your websites domain name)：进行 SSL 加密的网站域名。
+Email Address：邮件地址，选填。
+A challenge password：选填。
+An optional company name：选填。
